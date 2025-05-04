@@ -68,3 +68,5 @@ ggplot() +
   coord_sf(xlim = st_bbox(para)[c("xmin", "xmax")], ylim = st_bbox(para)[c("ymin", "ymax")]) +
   theme_minimal() +
   ggtitle("Connections to Treated Point in Pará, Brazil")
+
+# ready to commit
