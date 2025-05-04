@@ -14,6 +14,7 @@ data <- data[, c("geometry_name", "centroid_lat", "centroid_lon", "weights")]
 data <- data[!duplicated(data$geometry_name), ]
 View(data)
 
+
 # histrogram of weights
 hist(weights$weights.y, breaks = 100, main = "Histogram of Weights", xlab = "Weights", ylab = "Frequency")
 # Drop those with weights < 0.01
