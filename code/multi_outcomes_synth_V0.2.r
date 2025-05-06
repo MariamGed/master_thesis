@@ -72,9 +72,11 @@ plot(syn_deforestation, inf_type = "jackknife+") # Pointwise confidence interval
 
 
 # ---- Running multiple outcome synth control ---- 
-syn_multi <- augsynth(deforestation + SR_B7 + SR_B1 + SR_B2 + NDVI ~ treatment, geometry_name, year, data, progfunc = 'None', scm=T)
+syn_multi <- augsynth(deforestation + SR_B1 + SR_B2 + SR_B3 ~ treatment, geometry_name, year, data, progfunc = 'None', scm=T)
+syn_deforestation <- augsynth(deforestation ~ treatment | SR_B1 + SR_B2 + SR_B3, geometry_name, year, data, progfunc = 'None', scm=T)
 summary(syn_multi)
-plot(syn_multi)
+summary(syn_deforestation)
+plot(syn_deforestation)
 
 # export the weights
 weights <- syn_multi$w
@@ -82,7 +84,7 @@ weights <- as.data.frame(weights)
 colnames(weights) <- c("weights")
 weights$geometry_name <- rownames(weights)
 # save the weights
-write.csv(weights, "data/multi_outcomes_weightsV1.csv", row.names = FALSE)
+write.csv(weights, "data/multi_outcomes_donor_weightsV2.csv", row.names = FALSE)
 
 # ---- using gsynth instead ----
 library(gsynth) # For generalised synth control 
@@ -103,7 +105,7 @@ panelview(deforestation ~ treatment, data = data, index = c("geometry_name", "ye
 system.time(
     out <- gsynth(deforestation ~ treatment, data = data,
                   index = c("geometry_name","year"), force = "two-way",
-                  CV = TRUE, r = c(0, 3), se = TRUE, 
+                  CV = TRUE, r = c(0, 5), se = TRUE, 
                   inference = "parametric", nboots = 1000, 
                   parallel = TRUE)
 )
