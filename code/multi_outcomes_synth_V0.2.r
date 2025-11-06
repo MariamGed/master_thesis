@@ -6,8 +6,9 @@ library(augsynth)
 # Load the data
 setwd("/Users/mariamgedenidze/Desktop/YSE Thesis/master_thesis/")
 #data <- read.csv("data/Maisa_single_treated_annual/Maisa_2001_2019_mean_annual_V3.csv")
-data <- read.csv("data/Maisa_single_treated_annual/Maisa_2001_2020_annual_full_V2.csv")
-
+#data <- read.csv("data/Maisa_single_treated_annual/Maisa_2001_2020_annual_full_V2.csv")
+data <- read.csv("data/Maisa_single_treated_annual/Maisa_2001_2020_annual_V4.csv")
+View(data)
 # ---- Data cleaning and formatting ----
 
 # Add a column treatment, called 'treatment'
@@ -26,19 +27,26 @@ data$system.index <- NULL
 
 # Check for missing values
 sum(is.na(data))
+# View where the missing values are
+panelview(NDVI ~ treatment, data = data, index = c("geometry_name", "year"), pre.post = TRUE, ylab = "Controls")
 
+
+# --- cleaning for V2 data, hardcoded --- 
 # Donor20.0, 2013 is missing: donor data in 2013 is missing for all outcomes but deforestation
 # Drop the year 2013 for all observations
 #data[data$year == 2013, ]
 
 # This is hardcoded for the full 100 donor pool dataset
-data <- data %>% filter(year != 2013)
+#data <- data %>% filter(year != 2013)
 
 # Donor 5, 60 in 2007 are NA
 # Drop donor 5 and 60 all together
 #View(data[data$geometry_name =="donor60.0",])
 
-data <- data %>% filter(!(geometry_name %in% c("donor5.0", "donor60.0")))
+#data <- data %>% filter(!(geometry_name %in% c("donor5.0", "donor60.0")))
+
+# ----- End of cleaning V2 hardcoded cleanup -----
+
 
 # Drop outliers, 1.5 std deviation from the mean (Introduces missing values )
 #data <- data %>% filter(deforestation < mean(data$deforestation, na.rm = TRUE) + 1.5 * sd(data$deforestation, na.rm = TRUE))
@@ -53,26 +61,57 @@ data <- data %>% filter(!(geometry_name %in% c("donor5.0", "donor60.0")))
 # Standardise the covariates
 #data$SR_B1 <- (data$SR_B1 - mean(data$SR_B1, na.rm = TRUE)) / sd(data$SR_B1, na.rm = TRUE)
 #data$SR_B2 <- (data$SR_B2 - mean(data$SR_B2, na.rm = TRUE)) / sd(data$SR_B2, na.rm = TRUE)
+#data$SR_B3 <- (data$SR_B3 - mean(data$SR_B3, na.rm = TRUE)) / sd(data$SR_B3, na.rm = TRUE)
 #data$SR_B5 <- (data$SR_B5 - mean(data$SR_B5, na.rm = TRUE)) / sd(data$SR_B5, na.rm = TRUE)
 #data$SR_B7 <- (data$SR_B7 - mean(data$SR_B7, na.rm = TRUE)) / sd(data$SR_B7, na.rm = TRUE)
+#data$mean_agri_proba <- (data$mean_agri_proba - mean(data$mean_agri_proba, na.rm = TRUE)) / sd(data$mean_agri_proba, na.rm = TRUE)
+#data$mean_logging_proba <- (data$mean_logging_proba - mean(data$mean_logging_proba, na.rm = TRUE)) / sd(data$mean_logging_proba, na.rm = TRUE)
+#data$mean_elevation <- (data$mean_elevation - mean(data$mean_elevation, na.rm = TRUE)) / sd(data$mean_elevation, na.rm = TRUE)
+#data$mean_slope <- (data$mean_slope - mean(data$mean_slope, na.rm = TRUE)) / sd(data$mean_slope, na.rm = TRUE)
 # View the data
+
+
+# ----- Demeaning data -------
+#  de-meaning outcomes across pre-treatment periods within each unit’s outcome series.
+'''
+# Havent yet done this
+data <- data %>%
+     group_by(geometry_name) %>%
+     mutate(deforestation = deforestation - mean(deforestation[year < 2012], na.rm = TRUE),
+            SR_B1 = SR_B1 - mean(SR_B1[year < 2012], na.rm = TRUE),
+            SR_B2 = SR_B2 - mean(SR_B2[year < 2012], na.rm = TRUE),
+            SR_B3 = SR_B3 - mean(SR_B3[year < 2012], na.rm = TRUE)
+            ) %>%
+     ungroup()
+'''
 
 # ---- Running single outcome synth control ----
 # Synth control augmented with Ridge regression
-syn_deforestation <- augsynth(deforestation ~ treatment | SR_B1 + SR_B2 + SR_B7, geometry_name, year, data, progfunc = 'Ridge', scm=T) # multiple treated points, so running multisynth
+syn_deforestation <- augsynth(deforestation ~ treatment | SR_B1 + SR_B2 + SR_B3 + mean_agri_proba + mean_logging_proba + mean_elevation + mean_slope, geometry_name, year, data, progfunc = 'Ridge', scm=T) 
 plot(syn_deforestation, inf_type = "jackknife+") # Pointwise confidence interval)
 plot(syn_deforestation, cv = T)
 summary(syn_deforestation) # Two-tail hypothesis test
 summary(syn_deforestation, stat_func = function(x) -sum(x)) # One-tail hypothesis test against positive effects)
 summary(syn_deforestation, stat_func = function(x) abs(x)) # One-tail test for the average post-treatment effect
 
-plot(syn_deforestation, cv = T)
-
-
-syn_deforestation <- augsynth(deforestation ~ treatment, geometry_name, year, data, progfunc = 'None', scm=T) # multiple treated points, so running multisynth
+syn_deforestation <- augsynth(deforestation ~ treatment, geometry_name, year, data, progfunc = 'None', scm=T) 
 summary(syn_deforestation)
 plot(syn_deforestation, inf_type = "jackknife+") # Pointwise confidence interval)
 
+View(syn_deforestation)
+sum(syn_deforestation$synw) # sum of weights should be 1
+
+# ---- understanding how balance was improved ---
+# Elevation for treated unit
+mean_treated_elevation <- data$mean_elevation[1]
+# Elevation for synthetic control
+weights <- syn_deforestation$synw
+data_donor_only <- data %>% filter(geometry_name != "treated")
+mean_synth_elevation <- data_donor_only$mean_elevation * weights
+#sum(mean_synth_elevation)
+#mean_treated_elevation
+hist(weights, breaks = 30, main = "Histogram of Donor Weights", xlab = "Weights", ylab = "Frequency")
+# Histogram shows that only 6 donors have non-zero weights
 
 # ---- Running multiple outcome synth control ---- 
 syn_multi <- augsynth(deforestation + SR_B1 + SR_B2 + SR_B3 ~ treatment, geometry_name, year, data, progfunc = 'None', scm=T)
@@ -177,7 +216,7 @@ panelview(deforestation ~ treatment, data = data, index = c("geometry_name", "ye
 
 # Run gsynth
 system.time(
-    out <- gsynth(deforestation ~ treatment, data = data, # + 'SR_B1' + 'SR_B2' + 'SR_B3'
+    out <- gsynth(deforestation + 'SR_B1' + 'SR_B2' + 'SR_B3' ~ treatment, data = data, # + 'SR_B1' + 'SR_B2' + 'SR_B3'
                   index = c("geometry_name","year"), force = "two-way",
                   CV = TRUE, r = c(0, 5), se = TRUE, 
                   inference = "parametric", nboots = 1000, 
@@ -250,3 +289,10 @@ data_time_placebo <- data_time_placebo %>%
 
 syn_multi <- augsynth(deforestation + SR_B1 + SR_B2 + SR_B3 ~ treatment, geometry_name, year, data_placebo, progfunc = 'None', scm=T)
 summary(syn_multi)
+
+
+#
+syn_multi <- augsynth(deforestation ~ treatment|SR_B1 + SR_B2 + SR_B3, geometry_name, year, data, progfunc = 'None', scm=T)
+summary(syn_multi)
+syn_multi
+colnames(data)
