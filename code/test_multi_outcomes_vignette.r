@@ -19,6 +19,6 @@ syn_estabscapita <- augsynth(estabscapita ~ treated, fips, year_qtr, kansas, pro
 
 # Run multiple outcomes synth control
 syn_multi <- augsynth(lngdpcapita + lntotalwagescapita + estabscapita ~ treated, fips, year_qtr, kansas, progfunc="None", scm=T)
-summary(syn_multi)
-plot(syn_multi)
-
+summary(syn_multi, grid_size = 3)
+plot(syn_multi, plt_avg = TRUE, grid_size = 3)
+# View(syn_multi) # to view the whole outcome object

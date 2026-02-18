@@ -2,12 +2,12 @@
 library(magrittr)
 library(dplyr)
 library(augsynth)
+library(panelView)
 
 # Load the data
-setwd("/Users/mariamgedenidze/Desktop/YSE Thesis/master_thesis/")
-#data <- read.csv("data/Maisa_single_treated_annual/Maisa_2001_2019_mean_annual_V3.csv")
+data <- read.csv("data/Maisa_single_treated_annual/Maisa_2001_2019_mean_annual_V3.csv")
 #data <- read.csv("data/Maisa_single_treated_annual/Maisa_2001_2020_annual_full_V2.csv")
-data <- read.csv("data/Maisa_single_treated_annual/Maisa_2001_2020_annual_V4.csv")
+#data <- read.csv("data/Maisa_single_treated_annual/Maisa_2001_2020_annual_V4.csv")
 View(data)
 # ---- Data cleaning and formatting ----
 
@@ -71,7 +71,7 @@ panelview(NDVI ~ treatment, data = data, index = c("geometry_name", "year"), pre
 # View the data
 
 
-# ----- Demeaning data -------
+# ----- Demeaning data ------- -> UPDATE: package handles this
 #  de-meaning outcomes across pre-treatment periods within each unit’s outcome series.
 '''
 # Havent yet done this
@@ -114,11 +114,11 @@ hist(weights, breaks = 30, main = "Histogram of Donor Weights", xlab = "Weights"
 # Histogram shows that only 6 donors have non-zero weights
 
 # ---- Running multiple outcome synth control ---- 
-syn_multi <- augsynth(deforestation + SR_B1 + SR_B2 + SR_B3 ~ treatment, geometry_name, year, data, progfunc = 'None', scm=T)
+syn_multi <- augsynth(deforestation + SR_B1 + SR_B2 + SR_B3 ~ treatment | NDVI, geometry_name, year, data, progfunc = 'None', scm=T)
 syn_deforestation <- augsynth(deforestation ~ treatment | SR_B1 + SR_B2 + SR_B3, geometry_name, year, data, progfunc = 'None', scm=T)
-summary(syn_multi)
+summary(syn_multi, grid_size = 2) # takes 2^{number of outcomes} evaluations
 summary(syn_deforestation)
-plot(syn_deforestation)
+plot(syn_multi, grid_size = 3)
 
 syn_multi[1] # = weights for each donor
 syn_multi[2] # l2 balance
