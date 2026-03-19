@@ -5,8 +5,9 @@ library(augsynth)
 library(panelView)
 
 # Load the data
-data <- read.csv("data/Maisa_single_treated_annual/Maisa_2001_2019_mean_annual_V3.csv")
-#data <- read.csv("data/Maisa_single_treated_annual/Maisa_2001_2020_annual_full_V2.csv")
+
+#data <- read.csv("data/Maisa_single_treated_annual/Maisa_2001_2019_mean_annual_V3.csv") #This is toy dataset of 5 donors
+data <- read.csv("data/Maisa_single_treated_annual/Maisa_2001_2020_annual_full_V2.csv")
 #data <- read.csv("data/Maisa_single_treated_annual/Maisa_2001_2020_annual_V4.csv")
 View(data)
 # ---- Data cleaning and formatting ----
@@ -29,6 +30,11 @@ data$system.index <- NULL
 sum(is.na(data))
 # View where the missing values are
 panelview(NDVI ~ treatment, data = data, index = c("geometry_name", "year"), pre.post = TRUE, ylab = "Controls")
+
+
+# For V4, I drop all observations that have at least 1 NA across all columns
+data <- data %>% 
+     filter(!is.na(deforestation) & !is.na(NDVI) & !is.na(SR_B1) & !is.na(SR_B2) & !is.na(SR_B3) & !is.na(SR_B4) & !is.na(SR_B5) & !is.na(SR_B7) )
 
 
 # --- cleaning for V2 data, hardcoded --- 
@@ -87,16 +93,17 @@ data <- data %>%
 
 # ---- Running single outcome synth control ----
 # Synth control augmented with Ridge regression
-syn_deforestation <- augsynth(deforestation ~ treatment | SR_B1 + SR_B2 + SR_B3 + mean_agri_proba + mean_logging_proba + mean_elevation + mean_slope, geometry_name, year, data, progfunc = 'Ridge', scm=T) 
+syn_deforestation <- augsynth(deforestation ~ treatment, geometry_name, year, data, progfunc = 'Ridge', scm=T) #  | SR_B1 + SR_B2 + SR_B3, mean_agri_proba + mean_logging_proba +  + mean_elevation + mean_slope
 plot(syn_deforestation, inf_type = "jackknife+") # Pointwise confidence interval)
 plot(syn_deforestation, cv = T)
 summary(syn_deforestation) # Two-tail hypothesis test
 summary(syn_deforestation, stat_func = function(x) -sum(x)) # One-tail hypothesis test against positive effects)
 summary(syn_deforestation, stat_func = function(x) abs(x)) # One-tail test for the average post-treatment effect
 
-syn_deforestation <- augsynth(deforestation ~ treatment, geometry_name, year, data, progfunc = 'None', scm=T) 
+syn_deforestation <- augsynth(deforestation ~ treatment |SR_B1 + SR_B2 + SR_B3 + NDVI , geometry_name, year, data, progfunc = 'None', scm=T) 
 summary(syn_deforestation)
 plot(syn_deforestation, inf_type = "jackknife+") # Pointwise confidence interval)
+plot(syn_deforestation)
 
 View(syn_deforestation)
 sum(syn_deforestation$synw) # sum of weights should be 1
@@ -114,14 +121,17 @@ hist(weights, breaks = 30, main = "Histogram of Donor Weights", xlab = "Weights"
 # Histogram shows that only 6 donors have non-zero weights
 
 # ---- Running multiple outcome synth control ---- 
-syn_multi <- augsynth(deforestation + SR_B1 + SR_B2 + SR_B3 ~ treatment | NDVI, geometry_name, year, data, progfunc = 'None', scm=T)
-syn_deforestation <- augsynth(deforestation ~ treatment | SR_B1 + SR_B2 + SR_B3, geometry_name, year, data, progfunc = 'None', scm=T)
+syn_multi <- augsynth(deforestation + NDVI ~ treatment |  SR_B2 + SR_B3 + SR_B4 + SR_B5 + SR_B7, geometry_name, year, data, progfunc = 'None', scm=T)
+syn_deforestation <- augsynth(deforestation ~ treatment | NDVI + SR_B1 , geometry_name, year, data, progfunc = 'None', scm=T) #+ SR_B2 + SR_B3 + SR_B4 + SR_B5 + SR_B7
 summary(syn_multi, grid_size = 2) # takes 2^{number of outcomes} evaluations
 summary(syn_deforestation)
 plot(syn_multi, grid_size = 3)
 
 syn_multi[1] # = weights for each donor
 syn_multi[2] # l2 balance
+
+
+summary(syn_multi, grid_size = 7)
 
 # View the summary
 # This unpacks info about:
