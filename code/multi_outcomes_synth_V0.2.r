@@ -6,9 +6,10 @@ library(panelView)
 
 # Load the data
 
+setwd("/Users/mariamgedenidze/Desktop/YSE Thesis/master_thesis/")
 #data <- read.csv("data/Maisa_single_treated_annual/Maisa_2001_2019_mean_annual_V3.csv") #This is toy dataset of 5 donors
-data <- read.csv("data/Maisa_single_treated_annual/Maisa_2001_2020_annual_full_V2.csv")
-#data <- read.csv("data/Maisa_single_treated_annual/Maisa_2001_2020_annual_V4.csv")
+#data <- read.csv("data/Maisa_single_treated_annual/Maisa_2001_2020_annual_full_V2.csv")
+data <- read.csv("data/Maisa_single_treated_annual/Maisa_2001_2020_annual_V4.csv")
 View(data)
 # ---- Data cleaning and formatting ----
 
@@ -31,10 +32,66 @@ sum(is.na(data))
 # View where the missing values are
 panelview(NDVI ~ treatment, data = data, index = c("geometry_name", "year"), pre.post = TRUE, ylab = "Controls")
 
-
 # For V4, I drop all observations that have at least 1 NA across all columns
-data <- data %>% 
-     filter(!is.na(deforestation) & !is.na(NDVI) & !is.na(SR_B1) & !is.na(SR_B2) & !is.na(SR_B3) & !is.na(SR_B4) & !is.na(SR_B5) & !is.na(SR_B7) )
+# data <- data %>% 
+#      filter(!is.na(NDVI))
+
+# drop raws with at least one NA value across all columns
+data_clean <- data %>%
+  group_by(geometry_name) %>%
+  filter(!any(is.na(NDVI))) %>%
+  ungroup()
+
+hist(data$deforestation)
+hist(data$deforestation[data$geometry_name=="donor17.0"])
+
+plot(data$year[data$geometry_name=="treated"], data$deforestation[data$geometry_name=="treated"])
+
+# remove some donor points that have high average deforestation 
+# doesn't help with the model aborting
+
+plot(data$year[data$geometry_name=="donor124.0"], data$deforestation[data$geometry_name=="donor124.0"])
+
+#list of donor points
+donors <- data %>% 
+    filter(geometry_name != "treated") %>% 
+    select(geometry_name) %>% 
+    distinct() %>% 
+    pull()
+
+years <- data %>% 
+    select(year) %>% 
+    distinct() %>% 
+    pull()
+
+find_flat_areas <- function(data) {
+  candidates <- list()  #c()
+  for (i in donors) {
+    temp <- data %>% filter(geometry_name == i) %>% arrange(year)
+    deforestation <- temp$deforestation
+    n <- 13 #length(deforestation)
+    for (t in 5:(n-1)) {   # require some baseline years
+        pre_mean <- mean(deforestation[1:(t-1)])
+        #spike <- deforestation[t]
+
+        if(pre_mean > 0.02) {
+        candidates <- rbind(candidates, c(geometry_name = i, timestamp = t))
+        }
+    }
+  }
+  return(candidates)
+}
+
+results <- find_flat_areas(data)
+print(results)
+results <- as.data.frame(results)
+donors_to_remove <- unique(results$geometry_name)
+
+data1 <- data %>%
+     filter(!geometry_name %in% donors_to_remove)
+
+length(unique(data1$geometry_name)) # removed lowest def level data
+# maybe I should remove the top ones ?! 
 
 
 # --- cleaning for V2 data, hardcoded --- 
@@ -93,7 +150,7 @@ data <- data %>%
 
 # ---- Running single outcome synth control ----
 # Synth control augmented with Ridge regression
-syn_deforestation <- augsynth(deforestation ~ treatment, geometry_name, year, data, progfunc = 'Ridge', scm=T) #  | SR_B1 + SR_B2 + SR_B3, mean_agri_proba + mean_logging_proba +  + mean_elevation + mean_slope
+syn_deforestation <- augsynth(deforestation ~ treatment, geometry_name, year, data1, progfunc = 'Ridge', scm=T) #  | SR_B1 + SR_B2 + SR_B3, mean_agri_proba + mean_logging_proba +  + mean_elevation + mean_slope
 plot(syn_deforestation, inf_type = "jackknife+") # Pointwise confidence interval)
 plot(syn_deforestation, cv = T)
 summary(syn_deforestation) # Two-tail hypothesis test
@@ -104,9 +161,16 @@ syn_deforestation <- augsynth(deforestation ~ treatment |SR_B1 + SR_B2 + SR_B3 +
 summary(syn_deforestation)
 plot(syn_deforestation, inf_type = "jackknife+") # Pointwise confidence interval)
 plot(syn_deforestation)
-
-View(syn_deforestation)
 sum(syn_deforestation$synw) # sum of weights should be 1
+
+# library(fect) # single outcome gsynth
+# single_outcome <- fect(deforestation ~ treatment + SR_B1 + SR_B2 + SR_B3 + NDVI, data = data1, index = c("geometry_name","year"), #+ SR_B1_standardised + SR_B2_standardised + SR_B5_standardised
+#             method = "gsynth", force = "two-way", CV = FALSE, r = c(0, 5), 
+#             se = TRUE,  vartype = 'parametric', 
+#             parallel = FALSE) # + X1 + X2 # nboots = 1000,
+
+# a <- plot(single_outcome)
+# print(a)
 
 # ---- understanding how balance was improved ---
 # Elevation for treated unit
@@ -121,17 +185,19 @@ hist(weights, breaks = 30, main = "Histogram of Donor Weights", xlab = "Weights"
 # Histogram shows that only 6 donors have non-zero weights
 
 # ---- Running multiple outcome synth control ---- 
-syn_multi <- augsynth(deforestation + NDVI ~ treatment |  SR_B2 + SR_B3 + SR_B4 + SR_B5 + SR_B7, geometry_name, year, data, progfunc = 'None', scm=T)
+syn_multi <- augsynth(deforestation + NDVI + SR_B1 + SR_B2 + SR_B5 ~ treatment , geometry_name, year, data_clean, progfunc = 'None', scm=T, combine_method = 'concat') #|  SR_B2 + SR_B3 + SR_B4 + SR_B5 + SR_B7
 syn_deforestation <- augsynth(deforestation ~ treatment | NDVI + SR_B1 , geometry_name, year, data, progfunc = 'None', scm=T) #+ SR_B2 + SR_B3 + SR_B4 + SR_B5 + SR_B7
 summary(syn_multi, grid_size = 2) # takes 2^{number of outcomes} evaluations
-summary(syn_deforestation)
+summary(syn_multi)
 plot(syn_multi, grid_size = 3)
 
 syn_multi[1] # = weights for each donor
 syn_multi[2] # l2 balance
+syn_multi$weights
 
+# summary(syn_multi, inf = FALSE)
 
-summary(syn_multi, grid_size = 7)
+# summary(syn_multi, grid_size = 2)
 
 # View the summary
 # This unpacks info about:
