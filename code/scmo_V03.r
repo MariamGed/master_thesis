@@ -11,7 +11,9 @@ library(augsynth)
 library(tidyverse)
 
 # Data
-data <- read.csv("data/Maisa_single_treated_annual/Maisa_2001_2020_annual_V4.csv")
+# data <- read.csv("data/Maisa_single_treated_annual/Maisa_2001_2020_annual_V4.csv")
+data <- read.csv("data/Maisa_single_treated_annual/Maisa_2001_2020_annual_V5.csv")
+
 
 # Drop column .geo and .index
 data$.geo <- NULL
@@ -66,29 +68,34 @@ data <- data %>%
 data_with_synthetic <- data %>%
     group_by(year) %>%
     mutate(synthetic_deforestation = sum(deforestation * weight, na.rm = TRUE)) %>%
+    mutate(synthetic_NDVI = sum(NDVI * weight, na.rm = TRUE)) %>%
+    mutate(synthetic_SR_B1 = sum(SR_B1 * weight, na.rm = TRUE)) %>%
+    mutate(synthetic_SR_B2 = sum(SR_B2 * weight, na.rm = TRUE)) %>%
+    mutate(synthetic_SR_B5 = sum(SR_B5 * weight, na.rm = TRUE)) %>%
     ungroup() 
-
 
 # plot treated vs synthetic deforestation
 treated_deforestation <- data_with_synthetic %>%
     filter(geometry_name == "treated") %>%
-    select(year, deforestation) 
+    select(year, deforestation, NDVI, SR_B1, SR_B2, SR_B5) 
 
 synth_deforestation <- data_with_synthetic %>%
     group_by(year) %>%
-    summarise(synthetic_deforestation = unique(synthetic_deforestation))
+    summarise(synthetic_deforestation = unique(synthetic_deforestation),
+              synthetic_NDVI = unique(synthetic_NDVI),
+              synthetic_SR_B1 = unique(synthetic_SR_B1),
+              synthetic_SR_B2 = unique(synthetic_SR_B2),
+              synthetic_SR_B5 = unique(synthetic_SR_B5))
 
 deforestation_comparison <- treated_deforestation %>%
     left_join(synth_deforestation, by = "year")
 
 # plot 
-plt <- ggplot(deforestation_comparison, aes(x = year)) +
-    geom_line(aes(y = deforestation, color = "Treated")) +
-    geom_line(aes(y = synthetic_deforestation, color = "Synthetic Control"), linetype = "dashed") +
+ggplot(deforestation_comparison, aes(x = year)) +
+    geom_line(aes(y = SR_B5, color = "Treated")) +
+    geom_line(aes(y = synthetic_SR_B5, color = "Synthetic Control"), linetype = "dashed") +
     labs(title = "Deforestation: Treated vs Synthetic Control", y = "Deforestation", color = "Legend") +
     theme_minimal()
-
-print(plt)
 
 # save deforestation_comparison
 write.csv(deforestation_comparison, "results/scmo_treated_deforestation_gaps.csv", row.names = FALSE)
