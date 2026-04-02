@@ -84,10 +84,6 @@ ggplot() +
 
 
 # ---- Adding a basemap ----
-
-data <- read.csv("data/Maisa_single_treated_annual/Maisa_2001_2020_annual_full_V2.csv")
-final_placebo_results <- read.csv("results/area_placebo_test_ATT_SC_vs_SCMO_v01.csv")
-
 # Libraries
 
 library(dplyr)
@@ -102,6 +98,16 @@ library(geobr) # For brazilian borders
 library(osmdata)
 library(ggspatial)
 library(basemaps)
+
+# LOAD DATA
+data <- read.csv("data/Maisa_single_treated_annual/Maisa_2001_2020_annual_V4.csv")
+final_placebo_results <- read.csv("results/area_placebo_test_ATT_SC_vs_SCMO_v01.csv")
+
+sc_res <- read.csv("results/area_placebo_original_synth_datav4_v01.csv")
+scmo_res <- read.csv("results/area_placebo_scmo_datav4_v01.csv")
+
+final_placebo_results <- scmo_res %>%
+  left_join(sc_res, by = "geometry_name")
 
 # convert to long format for plotting
 final_placebo_results_long <- final_placebo_results %>%
@@ -123,58 +129,71 @@ final_placebo_results <- final_placebo_results %>%
   left_join(placebo_coordinates, by = "geometry_name")
 
 # Visualisation of placebo results on a map
-# Points
-points_sf <- st_as_sf(final_placebo_results,
-                     coords = c("centroid_lon", "centroid_lat"),
-                     crs = 4326)
+# # Points
+# points_sf <- st_as_sf(final_placebo_results,
+#                      coords = c("centroid_lon", "centroid_lat"),
+#                      crs = 4326)
 
-# Get a basemap using rnaturalearth (world map)
-world <- ne_countries(scale = "medium", returnclass = "sf")
-#  Load Pará state polygon
-para_border <- read_state(code_state = "PA", year = 2020)
-# Transform to Web Mercator (required by basemaps)
-para_3857 <- st_transform(para_border, crs = 3857)
+# # Get a basemap using rnaturalearth (world map)
+# world <- ne_countries(scale = "medium", returnclass = "sf")
+# #  Load Pará state polygon
+# para_border <- read_state(code_state = "PA", year = 2020)
+# # Transform to Web Mercator (required by basemaps)
+# para_3857 <- st_transform(para_border, crs = 3857)
 
-# Ensure para is in WGS84 (required for OSM queries)
-para_wgs <- st_transform(para, 4326)
+# # Ensure para is in WGS84 (required for OSM queries)
+# para_wgs <- st_transform(para, 4326)
 
-st_crs(points_sf)
-st_crs(para_wgs)
+# st_crs(points_sf)
+# st_crs(para_wgs)
 
-# get a bounding box (not full for testing)
-bb_small <- c(
-  xmin = -60,
-  ymin = -10,
-  xmax = -45,
-  ymax = 5
-)
+# # get a bounding box (not full for testing)
+# bb_small <- c(
+#   xmin = -60,
+#   ymin = -10,
+#   xmax = -45,
+#   ymax = 5
+# )
 
-# data(ext)
-para <- draw_ext()
-# install.packages("mapedit")
-library(mapedit)
-# Get osm basemap
-map_osm <- basemap(para, map_service = "osm", map_type = "streets")
-# esri
-map_esri <- basemap(para, map_service = "esri", map_type = "natgeo_world_map")
+# # data(ext)
+# para <- draw_ext()
+# # install.packages("mapedit")
+# library(mapedit)
+# # Get osm basemap
+# map_osm <- basemap(para, map_service = "osm", map_type = "streets")
+# # esri
+# map_esri <- basemap(para, map_service = "esri", map_type = "natgeo_world_map")
 
 
-# points in sf
-final_placebo_results <- st_as_sf(final_placebo_results,
+# # points in sf
+# final_placebo_results <- st_as_sf(final_placebo_results,
+#                                  coords = c("centroid_lon", "centroid_lat"),
+#                                  crs = 4326)
+
+final_placebo_results_sf <- st_as_sf(final_placebo_results,
                                  coords = c("centroid_lon", "centroid_lat"),
                                  crs = 4326)
 
-final_placebo_results$longitude <- st_coordinates(final_placebo_results)[, 1]
-final_placebo_results$latitude <- st_coordinates(final_placebo_results)[, 2]
+final_placebo_results_transformed <- st_transform(final_placebo_results_sf, crs = 3857)
+
+# final_placebo_results$longitude <- st_coordinates(final_placebo_results)[, 1]
+# final_placebo_results$latitude <- st_coordinates(final_placebo_results)[, 2]
 
 library(ggplot2)
 library(ggspatial)
 # Make sure your sf object is transformed to match the basemap CRS
-final_placebo_results <- st_transform(final_placebo_results, crs = 3857)
+
+
+# final_placebo_results <- final_placebo_results %>% select(-geometry)
+
+# #  Load Pará state polygon
+para <- read_state(code_state = "PA", year = 2020)
+# # Transform to Web Mercator (required by basemaps)
+para_3857 <- st_transform(para, crs = 3857)
 
 # Plot basemap + points
-basemap_ggplot(para, map_service = "osm", map_type = "streets") +
-  geom_sf(data = final_placebo_results, 
+basemap_ggplot(para_3857, map_service = "osm", map_type = "streets") +
+  geom_sf(data = final_placebo_results_transformed, 
           color = "red", 
           size = 2, 
           alpha = 0.7) +
@@ -182,7 +201,7 @@ basemap_ggplot(para, map_service = "osm", map_type = "streets") +
 
 # Plot basemap + points
 basemap_ggplot(para_3857, map_service = "esri", map_type = "natgeo_world_map") +
-  geom_sf(data = final_placebo_results, 
+  geom_sf(data = final_placebo_results_transformed, 
           color = "red", 
           size = 2, 
           alpha = 0.7) +
@@ -195,32 +214,49 @@ library(wdpar)
 library(sf)
 library(ggplot2)
 library(basemaps)
+library(ggnewscale)
 
 # Download WDPA data for Brazil
 wdpa_brazil <- wdpa_fetch("BRA", wait = TRUE, datatype = "shp")
 
 # Filter to Pará using spatial intersection with your border
-wdpa_para <- st_filter(wdpa_brazil, st_transform(para_border, st_crs(wdpa_brazil)))
+wdpa_para <- st_filter(wdpa_brazil, st_transform(para, st_crs(wdpa_brazil)))
 
 # Clean the data (removes invalid geometries, fixes issues)
 wdpa_para <- wdpa_clean(wdpa_para)
 
 # Transform all layers to 3857
-para_3857       <- st_transform(para_border, 3857)
+para_3857       <- st_transform(para, 3857)
 wdpa_3857       <- st_transform(wdpa_para,   3857)
-points_3857     <- st_transform(final_placebo_results, 3857)
+points_3857     <- st_transform(final_placebo_results_transformed, 3857)
 
 points_3857$SCMO_wins <- factor(points_3857$SCMO_wins, levels = c(TRUE, FALSE))
 
+# Buffer by x km (e.g. 50 km = 50000 metres)
+points_buffered <- st_buffer(points_3857, dist = 8000)
 
-basemap_ggplot(para_3857, map_service = "osm", map_type = "streets") +
-  geom_sf(data = wdpa_3857,   fill = "blue", color = NA,    alpha = 0.4) +
-  geom_sf(data = para_3857,   fill = NA,      color = "black", linewidth = 0.8) +
-  geom_sf(data = points_3857, aes(color = SCMO_wins),  size = 2,      alpha = 0.7) +
-scale_color_manual(values = c("TRUE" = "green", "FALSE" = "blue"),
-                   labels = c("TRUE" = "Significant", "FALSE" = "Not significant"),
-                   name = "Result") +
-  theme_minimal()
+wdpa_3857   <- st_make_valid(wdpa_3857)
+para_3857   <- st_make_valid(para_3857)
+
+wdpa_clipped <- st_intersection(wdpa_3857, para_3857)
+
+basemap_ggplot(para_3857, map_service = "esri", map_type = "natgeo_world_map", alpha = 0.8) +
+  geom_sf(data = wdpa_clipped, fill = "gray1", color = NA, alpha = 0.3) +
+  geom_sf(data = para_3857, fill = NA, color = "black", linewidth = 0.8) +
+
+  ggnewscale::new_scale_fill() +
+
+  geom_sf(data = points_buffered, aes(fill = SCMO_wins), alpha = 1) +
+  scale_fill_manual(
+    values = c("TRUE" = "dark green", "FALSE" = "red"),
+    labels = c("TRUE" = "SCMO wins", "FALSE" = "SC wins"),
+    name = "Result"
+  ) +
+  theme_minimal() +
+  theme(panel.grid = element_blank())
 
 # save the plot
-ggsave("figures/area_placebo_results_SCMO_SC_datav2.png", width = 10, height = 8, dpi = 300)
+ggsave("figures/area_placebo_results_SCMO_SC_faded_datav4.png", width = 10, height = 8, dpi = 300)
+
+
+
