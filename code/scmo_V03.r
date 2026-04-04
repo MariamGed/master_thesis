@@ -11,8 +11,8 @@ library(augsynth)
 library(tidyverse)
 
 # Data
-# data <- read.csv("data/Maisa_single_treated_annual/Maisa_2001_2020_annual_V4.csv")
-data <- read.csv("data/Maisa_single_treated_annual/Maisa_2001_2020_annual_V5.csv")
+data <- read.csv("data/Maisa_single_treated_annual/Maisa_2001_2020_annual_V4.csv")
+# data <- read.csv("data/Maisa_single_treated_annual/Maisa_2001_2020_annual_V5.csv")
 
 
 # Drop column .geo and .index
@@ -50,7 +50,7 @@ run_synth <- function(data, treatment_point, treatment_year){
 
 try1 <- run_synth(data, "treated", 2012) 
 scmo_outcome <- try1[["full_outcome"]]
-plot(scmo_outcome, grid_size = 1)
+plot(scmo_outcome, grid_size = 2)
 
 # make a gaps plot: treated vs synthetic control
 weights <- scmo_outcome[["weights"]]
@@ -59,6 +59,41 @@ weights_df <- as.data.frame(weights)
 weights_df$geometry_name <- rownames(weights_df)
 weights_df <- weights_df %>%
   rename(weight = V1)
+
+# ------ Temp code -> without function ----
+# Data prep
+data$treatment <- 0
+data$treatment[data$geometry_name == 'treated' & data$year >= 2012] <- 1
+data$treatment <- as.numeric(data$treatment)
+data$geometry_name <- as.factor(data$geometry_name)
+# Sort the data by geometry_name and year
+data <- data[order(data$geometry_name, data$year), ]
+
+# drop geometry_name 35 --> has high weight but is from the protected area
+data <- data %>%
+    filter(geometry_name != "donor35.0")
+
+outcome <- augsynth(deforestation + NDVI + SR_B1 + SR_B2 + SR_B5 ~ treatment, 
+                    geometry_name, 
+                    year, 
+                    data = data, 
+                    # t_int= 2012, 
+                    progfunc = 'Ridge', 
+                    scm=T)
+
+weights <- outcome[["weights"]]
+# make weights into a df
+weights_df <- as.data.frame(weights)
+weights_df$geometry_name <- rownames(weights_df)
+weights_df <- weights_df %>%
+  rename(weight = V1)
+# save the weights df
+write.csv(weights_df, "results/scmo_weights_datav04_v02.csv", row.names = FALSE)
+
+summary(outcome, grid_size = 1)
+# --- End of Temp code ----
+
+
 
 # add weights to data
 data <- data %>%
@@ -126,4 +161,3 @@ sc_placebo_results$ATT_SCMO <- as.numeric(sc_placebo_results$ATT_SCMO)
 
 # Save the placebo results
 write.csv(sc_placebo_results, "results/area_placebo_scmo_datav4_v01.csv", row.names = FALSE)
-
