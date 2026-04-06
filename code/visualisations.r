@@ -277,18 +277,18 @@ ggplot(data_treat, aes(x = year, y = deforestation*100)) +
   # vertical line at 2012
   geom_vline(xintercept = 2012, linetype = "dashed", color = "blue", size = 1) +
   # add limits on y axis
-  ylim(0, 10) +
+  ylim(0, 3) +
   scale_color_manual(labels = c("Treated"), name = "") + # removes legend title 
-  theme_minimal(base_size = 22) +
+  theme_minimal(base_size = 35) +
   labs(title = "Deforestation in conserved project is close to zero",
        x = "Year",
        y = "Deforestation (% of total area)") +
   theme(legend.position = "top")  +
-  theme(panel.grid.major = element_line(color = "gray80"),
+  theme(panel.grid.major = element_line(color = "lightgrey"),
         panel.grid.minor = element_blank())
 
 # save the plot
-ggsave("figures/deforestaion_treated_lineplot_scale10_V02.png", width = 10, height = 13, dpi = 300)
+ggsave("figures/deforestaion_treated_lineplot_scale3_V02.png", width = 10, height = 13, dpi = 300)
 
 
 
@@ -353,26 +353,26 @@ length(data_subset$geometry_name %>% unique())
 ggplot(data_subset, aes(x = year, y = deforestation*100, group = geometry_name, color = geometry_name == "treated")) + #, size = 1
   # geom_line() +
   geom_line(data = subset(data_subset, geometry_name != "treated"), 
-          color = "grey", alpha = 0.5) +
+          color = "grey1", alpha = 0.5) +
 geom_line(data = subset(data_subset, geometry_name == "treated"), 
           color = "red", size = 1.2) +
   geom_point() +
   geom_vline(xintercept = 2012, linetype = "dashed", color = "blue", size = 1) +
   # add limits on y axis
-  ylim(0, 100) +
+  ylim(0, 3) +
   scale_color_manual(values = c("TRUE" = "red", "FALSE" = "grey"),
                     labels = c("TRUE" = "Treated", "FALSE" = "Donor"),
                     name = "") +  # removes legend title 
-  theme_minimal(base_size = 24) +
+  theme_minimal(base_size = 35) +
   labs(title = "Many donor units with low deforestation",
        x = "Year",
        y = "Deforestation (% of total area)") +
     theme(legend.position = "top")  +
-  theme(panel.grid.major = element_line(color = "gray80"),
+  theme(panel.grid.major = element_line(color = "lightgrey"),
       panel.grid.minor = element_blank()) 
 # + theme(legend.key.width = unit(5, "cm"))
 
-ggsave("figures/deforestaion_donors_lineplot_scale100_V01.png", width = 10, height = 13, dpi = 300)
+ggsave("figures/deforestaion_donors_lineplot_scale3_V01.png", width = 10, height = 13, dpi = 300)
 
 
 
