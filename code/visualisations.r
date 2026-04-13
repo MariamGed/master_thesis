@@ -132,6 +132,8 @@ final_placebo_results <- final_placebo_results %>%
 # Visualisation of placebo results on a map
 
 # # data(ext)
+# load already processed data
+final_placebo_results <- read.csv("results/placebo_att_SC_SCMO_datav4_v02.csv")
 
 final_placebo_results_sf <- st_as_sf(final_placebo_results,
                                  coords = c("centroid_lon", "centroid_lat"),
@@ -193,7 +195,7 @@ para_3857       <- st_transform(para, 3857)
 wdpa_3857       <- st_transform(wdpa_para,   3857)
 points_3857     <- st_transform(final_placebo_results_transformed, 3857)
 
-points_3857$SCMO_wins <- factor(points_3857$SCMO_wins, levels = c(TRUE, FALSE))
+points_3857$SCMO_wins <- factor(points_3857$SCMO_wins_SC, levels = c(TRUE, FALSE))
 
 # Buffer by x km (e.g. 50 km = 50000 metres)
 points_buffered <- st_buffer(points_3857, dist = 8000)
@@ -218,6 +220,8 @@ basemap_ggplot(para_3857, map_service = "esri", map_type = "natgeo_world_map", a
   theme_minimal() +
   theme(panel.grid = element_blank())
 
+# save the plot
+ggsave("figures/placebo_results_map_scmo_vs_sc_datav4_v02.png", width = 10, height = 8, dpi = 300)
 
 library(ggplot2)
 library(sf)
@@ -424,6 +428,10 @@ coords <- rbind(coords, coords[1, ])
 poly <- st_polygon(list(coords)) |> 
   st_sfc(crs = 4326) |>   # WGS84 (same as GEE)
   st_sf()
+
+# range of lon and lat of the project area
+st_bbox(poly)
+st_centroid(poly)
 
 treated_3857 <- st_transform(poly, 3857)
 
