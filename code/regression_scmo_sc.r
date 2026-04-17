@@ -70,6 +70,7 @@ hist(merged_data$ATT_SC, breaks = 20, main = "Distribution of ATT Estimates - SC
 ggplot(merged_data, aes(x = ATT_SCMO, fill = "SCMO")) +
     geom_density(alpha = 0.5) +
     geom_density(aes(x = ATT_SC, fill = "SC"), alpha = 0.5) +
+    # stat_function(fun = dnorm, args = list(mean = 0.0007807, sd = 0.01673717), color = "black", size = 1, linetype = "dashed") +
     labs(title = "Density of ATT Estimates", x = "ATT Estimate", fill = "Method") +
     theme_minimal(base_size = 15) +
     scale_fill_manual(values = c("blue", "red")) +

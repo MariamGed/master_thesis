@@ -61,3 +61,21 @@ points_sf <- st_as_sf(final_placebo_results,
 # st_write(points_sf, "results/placebo_att_SC_SCMO_datav4_v01.shp", driver = "ESRI Shapefile", delete_dsn = TRUE)
 sum(final_placebo_results$SCMO_wins_SC)  #60
 View(points_sf)
+
+
+# quick summary stats of att
+summary(scmo_result$ATT)
+summary(sc_result$ATT)
+sd(sc_result$ATT)
+sd(scmo_result$ATT)
+
+# plot density of att
+library(ggplot2)
+ggplot() +
+  geom_density(data = sc_result, aes(x = ATT), fill = "blue", alpha = 0.5) +
+  stat_function(fun = dnorm, args = list(mean = 0.0007807, sd = 0.01673717), color = "black", size = 1, linetype = "dashed") +
+  geom_density(data = scmo_result, aes(x = ATT), fill = "red", alpha = 0.5) +
+  labs(title = "Density of ATT Estimates", x = "ATT Estimate", y = "Density") +
+  scale_fill_manual(values = c("blue", "red"), labels = c("SC", "SCMO")) +
+  theme(legend.title = element_blank())+
+    theme_minimal() 
