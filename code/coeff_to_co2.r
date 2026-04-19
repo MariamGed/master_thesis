@@ -40,3 +40,13 @@ total_def_before2012 <- sum(data_treated %>% filter(year > 2001 & year < 2012) %
 # total_def_before2012_ha <- total_def_before2012 * 0.09 * 28752
 
 
+0.002019464*502.79*28752
+0.002019464*453*28752104*3.67
+
+# Using carbon density 134 (Mg C ha−1) from https://www.nature.com/articles/nclimate1354
+# I use mean of all estimates given: mean(134,116,137,104,134) from Tropical Ameriva
+c_co2_ha <- 134 * 3.67 # Mg CO2 equivalent per hectare
+att <- 0.002019464
+area <- 30377.8062#28752
+att_co2 <- att * c_co2_ha * area
+att_co2
